@@ -127,6 +127,7 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     if (header_written < 0 || (size_t)header_written >= sizeof(header)) return -1;
 
     size_t header_len = (size_t)header_written + 1;
+    if (len > SIZE_MAX - header_len) return -1;
     size_t full_len = header_len + len;
     uint8_t *full_obj = malloc(full_len);
     if (!full_obj) return -1;

@@ -340,7 +340,8 @@ int index_add(Index *index, const char *path) {
     if (strcmp(path, PES_DIR) == 0 || strncmp(path, PES_DIR "/", strlen(PES_DIR) + 1) == 0) return -1;
 
     struct stat st;
-    if (stat(path, &st) != 0) return -1;
+    if (lstat(path, &st) != 0) return -1;
+    if (S_ISLNK(st.st_mode)) return -1;
     if (!S_ISREG(st.st_mode)) return -1;
     if (st.st_size < 0 || (uint64_t)st.st_size > UINT32_MAX) return -1;
 

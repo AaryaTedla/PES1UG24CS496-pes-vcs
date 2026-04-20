@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <ctype.h>
 #include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -28,6 +29,13 @@
 // Forward declarations (implemented in object.c)
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
 int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_t *len_out);
+
+static int has_non_whitespace(const char *s) {
+    for (const unsigned char *p = (const unsigned char *)s; *p; p++) {
+        if (!isspace(*p)) return 1;
+    }
+    return 0;
+}
 
 // ─── PROVIDED ────────────────────────────────────────────────────────────────
 
@@ -288,6 +296,7 @@ int head_update(const ObjectID *new_commit) {
 // Returns 0 on success, -1 on error.
 int commit_create(const char *message, ObjectID *commit_id_out) {
     if (!message || !commit_id_out) return -1;
+    if (!has_non_whitespace(message)) return -1;
 
     ObjectID tree_id;
     if (tree_from_index(&tree_id) != 0) return -1;

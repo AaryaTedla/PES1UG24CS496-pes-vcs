@@ -192,6 +192,8 @@ int head_read(ObjectID *id_out) {
 
 // Update the current branch ref to point to a new commit atomically.
 int head_update(const ObjectID *new_commit) {
+    if (!new_commit) return -1;
+
     FILE *f = fopen(HEAD_FILE, "r");
     if (!f) return -1;
     char line[512];
@@ -206,21 +208,53 @@ int head_update(const ObjectID *new_commit) {
         snprintf(target_path, sizeof(target_path), "%s", HEAD_FILE); // Detached HEAD
     }
 
-    char tmp_path[528];
-    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", target_path);
-    
-    f = fopen(tmp_path, "w");
-    if (!f) return -1;
+    char tmp_path[560];
+    int tmp_written = snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.XXXXXX", target_path);
+    if (tmp_written < 0 || (size_t)tmp_written >= sizeof(tmp_path)) return -1;
+
+    int tmp_fd = mkstemp(tmp_path);
+    if (tmp_fd < 0) return -1;
+
+    f = fdopen(tmp_fd, "w");
+    if (!f) {
+        close(tmp_fd);
+        unlink(tmp_path);
+        return -1;
+    }
     
     char hex[HASH_HEX_SIZE + 1];
     hash_to_hex(new_commit, hex);
-    fprintf(f, "%s\n", hex);
+    if (fprintf(f, "%s\n", hex) < 0) {
+        fclose(f);
+        unlink(tmp_path);
+        return -1;
+    }
     
-    fflush(f);
-    fsync(fileno(f));
-    fclose(f);
-    
-    return rename(tmp_path, target_path);
+    if (fflush(f) != 0 || fsync(fileno(f)) != 0 || fclose(f) != 0) {
+        unlink(tmp_path);
+        return -1;
+    }
+
+    if (rename(tmp_path, target_path) != 0) {
+        unlink(tmp_path);
+        return -1;
+    }
+
+    char dir_path[560];
+    snprintf(dir_path, sizeof(dir_path), "%s", target_path);
+    char *slash = strrchr(dir_path, '/');
+    if (!slash) return -1;
+    *slash = '\0';
+
+    int dir_fd = open(dir_path, O_RDONLY | O_DIRECTORY);
+    if (dir_fd < 0) return -1;
+    if (fsync(dir_fd) != 0) {
+        close(dir_fd);
+        return -1;
+    }
+    close(dir_fd);
+
+    return 0;
 }
 
 // ─── TODO: Implement these ───────────────────────────────────────────────────

@@ -323,6 +323,10 @@ int index_save(const Index *index) {
 // Returns 0 on success, -1 on error.
 int index_add(Index *index, const char *path) {
     if (!index || !path) return -1;
+    if (path[0] == '\0') return -1;
+    if (strlen(path) >= sizeof(((IndexEntry *)0)->path)) return -1;
+    if (strchr(path, '\n') || strchr(path, '\r')) return -1;
+    if (strcmp(path, PES_DIR) == 0 || strncmp(path, PES_DIR "/", strlen(PES_DIR) + 1) == 0) return -1;
 
     struct stat st;
     if (stat(path, &st) != 0) return -1;
@@ -339,7 +343,21 @@ int index_add(Index *index, const char *path) {
         return -1;
     }
 
-    if (size > 0 && fread(buf, 1, size, f) != size) {
+    size_t total = 0;
+    while (total < size) {
+        size_t n = fread(buf + total, 1, size - total, f);
+        if (n == 0) {
+            if (ferror(f)) {
+                free(buf);
+                fclose(f);
+                return -1;
+            }
+            break;
+        }
+        total += n;
+    }
+
+    if (total != size) {
         free(buf);
         fclose(f);
         return -1;

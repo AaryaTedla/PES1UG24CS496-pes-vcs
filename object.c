@@ -145,10 +145,21 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     }
 
     char tmp_path[560];
-    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.%ld.%d", final_path, (long)getpid(), rand());
+    int tmp_written = snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.XXXXXX", final_path);
+    if (tmp_written < 0 || (size_t)tmp_written >= sizeof(tmp_path)) {
+        free(full_obj);
+        return -1;
+    }
 
-    int fd = open(tmp_path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    int fd = mkstemp(tmp_path);
     if (fd < 0) {
+        free(full_obj);
+        return -1;
+    }
+
+    if (fchmod(fd, 0644) != 0) {
+        close(fd);
+        unlink(tmp_path);
         free(full_obj);
         return -1;
     }

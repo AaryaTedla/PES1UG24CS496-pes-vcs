@@ -106,18 +106,24 @@ int commit_parse(const void *data, size_t len, Commit *commit_out) {
 // Serialize a Commit struct to the text format.
 // Caller must free(*data_out).
 int commit_serialize(const Commit *commit, void **data_out, size_t *len_out) {
+    if (!commit || !data_out || !len_out) return -1;
+
     char tree_hex[HASH_HEX_SIZE + 1];
     char parent_hex[HASH_HEX_SIZE + 1];
     hash_to_hex(&commit->tree, tree_hex);
 
     char buf[8192];
     int n = 0;
-    n += snprintf(buf + n, sizeof(buf) - n, "tree %s\n", tree_hex);
+    int written = snprintf(buf + n, sizeof(buf) - (size_t)n, "tree %s\n", tree_hex);
+    if (written < 0 || (size_t)written >= sizeof(buf) - (size_t)n) return -1;
+    n += written;
     if (commit->has_parent) {
         hash_to_hex(&commit->parent, parent_hex);
-        n += snprintf(buf + n, sizeof(buf) - n, "parent %s\n", parent_hex);
+        written = snprintf(buf + n, sizeof(buf) - (size_t)n, "parent %s\n", parent_hex);
+        if (written < 0 || (size_t)written >= sizeof(buf) - (size_t)n) return -1;
+        n += written;
     }
-    n += snprintf(buf + n, sizeof(buf) - n,
+    written = snprintf(buf + n, sizeof(buf) - (size_t)n,
                   "author %s %" PRIu64 "\n"
                   "committer %s %" PRIu64 "\n"
                   "\n"
@@ -125,10 +131,12 @@ int commit_serialize(const Commit *commit, void **data_out, size_t *len_out) {
                   commit->author, commit->timestamp,
                   commit->author, commit->timestamp,
                   commit->message);
+    if (written < 0 || (size_t)written >= sizeof(buf) - (size_t)n) return -1;
+    n += written;
 
-    *data_out = malloc(n + 1);
+    *data_out = malloc((size_t)n + 1);
     if (!*data_out) return -1;
-    memcpy(*data_out, buf, n + 1);
+    memcpy(*data_out, buf, (size_t)n + 1);
     *len_out = (size_t)n;
     return 0;
 }

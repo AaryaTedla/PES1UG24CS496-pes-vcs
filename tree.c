@@ -116,6 +116,10 @@ int tree_serialize(const Tree *tree, void **data_out, size_t *len_out) {
     size_t offset = 0;
     for (int i = 0; i < sorted_tree.count; i++) {
         const TreeEntry *entry = &sorted_tree.entries[i];
+        if (entry->name[0] == '\0' || strchr(entry->name, '/')) {
+            free(buffer);
+            return -1;
+        }
         
         // Write mode and name (%o writes octal correctly for Git standards)
         if (offset >= max_size) {

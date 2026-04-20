@@ -291,7 +291,12 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
 
     char type_str[16];
     size_t declared_len = 0;
-    if (sscanf(header, "%15s %zu", type_str, &declared_len) != 2) {
+    int consumed = 0;
+    if (sscanf(header, "%15s %zu %n", type_str, &declared_len, &consumed) != 2) {
+        free(buf);
+        return -1;
+    }
+    if (consumed <= 0 || (size_t)consumed != strlen(header)) {
         free(buf);
         return -1;
     }

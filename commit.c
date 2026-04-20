@@ -87,8 +87,23 @@ int commit_parse(const void *data, size_t len, Commit *commit_out) {
     commit_out->timestamp = ts;
     p = line_end + 1;  // skip author line
 
+    // "committer <name> <timestamp>\n"
     line_end = memchr(p, '\n', (size_t)(end - p));
     if (!line_end) return -1;
+    line_len = (size_t)(line_end - p);
+    if (line_len >= sizeof(line_buf)) return -1;
+    memcpy(line_buf, p, line_len);
+    line_buf[line_len] = '\0';
+
+    char committer_buf[256];
+    if (sscanf(line_buf, "committer %255[^\n]", committer_buf) != 1) return -1;
+    char *committer_last_space = strrchr(committer_buf, ' ');
+    if (!committer_last_space) return -1;
+    uint64_t committer_ts = (uint64_t)strtoull(committer_last_space + 1, NULL, 10);
+    *committer_last_space = '\0';
+    if (strcmp(committer_buf, commit_out->author) != 0) return -1;
+    if (committer_ts != commit_out->timestamp) return -1;
+
     p = line_end + 1;  // skip committer line
 
     if (p >= end || *p != '\n') return -1;

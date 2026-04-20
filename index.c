@@ -234,10 +234,22 @@ int index_save(const Index *index) {
     qsort(sorted->entries, sorted->count, sizeof(IndexEntry), compare_index_entries);
 
     char tmp_path[512];
-    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", INDEX_FILE);
+    int tmp_written = snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.XXXXXX", INDEX_FILE);
+    if (tmp_written < 0 || (size_t)tmp_written >= sizeof(tmp_path)) {
+        free(sorted);
+        return -1;
+    }
 
-    FILE *f = fopen(tmp_path, "w");
+    int tmp_fd = mkstemp(tmp_path);
+    if (tmp_fd < 0) {
+        free(sorted);
+        return -1;
+    }
+
+    FILE *f = fdopen(tmp_fd, "w");
     if (!f) {
+        close(tmp_fd);
+        unlink(tmp_path);
         free(sorted);
         return -1;
     }
@@ -283,6 +295,18 @@ int index_save(const Index *index) {
         free(sorted);
         return -1;
     }
+
+    int dir_fd = open(PES_DIR, O_RDONLY | O_DIRECTORY);
+    if (dir_fd < 0) {
+        free(sorted);
+        return -1;
+    }
+    if (fsync(dir_fd) != 0) {
+        close(dir_fd);
+        free(sorted);
+        return -1;
+    }
+    close(dir_fd);
 
     free(sorted);
     return 0;

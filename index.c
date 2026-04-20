@@ -141,6 +141,10 @@ static int compare_index_entries(const void *a, const void *b) {
     return strcmp(ea->path, eb->path);
 }
 
+static int is_valid_index_mode(uint32_t mode) {
+    return mode == MODE_FILE || mode == MODE_EXEC;
+}
+
 // Load the index from .pes/index.
 //
 // HINTS - Useful functions:
@@ -178,8 +182,18 @@ int index_load(Index *index) {
             return -1;
         }
 
+        path[strcspn(path, "\r")] = '\0';
+        if (path[0] == '\0') {
+            fclose(f);
+            return -1;
+        }
+        if (!is_valid_index_mode((uint32_t)mode)) {
+            fclose(f);
+            return -1;
+        }
+
         IndexEntry *entry = &index->entries[index->count];
-        entry->mode = mode;
+        entry->mode = (uint32_t)mode;
         entry->mtime_sec = mtime_sec;
         entry->size = size;
         snprintf(entry->path, sizeof(entry->path), "%s", path);

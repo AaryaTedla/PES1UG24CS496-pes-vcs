@@ -70,6 +70,19 @@ static const char *object_type_name(ObjectType type) {
     }
 }
 
+static int write_all(int fd, const uint8_t *buf, size_t len) {
+    size_t written_total = 0;
+    while (written_total < len) {
+        ssize_t n = write(fd, buf + written_total, len - written_total);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
+        written_total += (size_t)n;
+    }
+    return 0;
+}
+
 // ─── TODO: Implement these ──────────────────────────────────────────────────
 
 // Write an object to the store.
@@ -164,16 +177,11 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
         return -1;
     }
 
-    size_t written_total = 0;
-    while (written_total < full_len) {
-        ssize_t n = write(fd, full_obj + written_total, full_len - written_total);
-        if (n < 0) {
-            close(fd);
-            unlink(tmp_path);
-            free(full_obj);
-            return -1;
-        }
-        written_total += (size_t)n;
+    if (write_all(fd, full_obj, full_len) != 0) {
+        close(fd);
+        unlink(tmp_path);
+        free(full_obj);
+        return -1;
     }
 
     if (fsync(fd) != 0) {

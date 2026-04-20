@@ -143,6 +143,10 @@ int commit_walk(commit_walk_fn callback, void *ctx) {
         void *raw;
         size_t raw_len;
         if (object_read(&id, &type, &raw, &raw_len) != 0) return -1;
+        if (type != OBJ_COMMIT) {
+            free(raw);
+            return -1;
+        }
 
         Commit c;
         int rc = commit_parse(raw, raw_len, &c);

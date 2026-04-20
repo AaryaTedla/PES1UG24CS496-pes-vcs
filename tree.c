@@ -167,6 +167,13 @@ static int find_subdir(char subdirs[][256], int count, const char *name) {
     return -1;
 }
 
+static int find_tree_entry(const Tree *tree, const char *name) {
+    for (int i = 0; i < tree->count; i++) {
+        if (strcmp(tree->entries[i].name, name) == 0) return i;
+    }
+    return -1;
+}
+
 static int write_tree_level(const Index *index, const char *prefix, ObjectID *id_out) {
     Tree tree;
     tree.count = 0;
@@ -186,6 +193,7 @@ static int write_tree_level(const Index *index, const char *prefix, ObjectID *id
         const char *slash = strchr(rel, '/');
         if (!slash) {
             if (tree.count >= MAX_TREE_ENTRIES) return -1;
+            if (find_subdir(subdirs, subdir_count, rel) >= 0) return -1;
 
             TreeEntry *entry = &tree.entries[tree.count++];
             entry->mode = index->entries[i].mode;
@@ -201,6 +209,7 @@ static int write_tree_level(const Index *index, const char *prefix, ObjectID *id
 
             if (find_subdir(subdirs, subdir_count, dirname) < 0) {
                 if (subdir_count >= MAX_TREE_ENTRIES) return -1;
+                if (find_tree_entry(&tree, dirname) >= 0) return -1;
                 snprintf(subdirs[subdir_count], sizeof(subdirs[subdir_count]), "%s", dirname);
                 subdir_count++;
             }

@@ -141,6 +141,13 @@ static int compare_index_entries(const void *a, const void *b) {
     return strcmp(ea->path, eb->path);
 }
 
+static int has_duplicate_path(const Index *index, const char *path) {
+    for (int i = 0; i < index->count; i++) {
+        if (strcmp(index->entries[i].path, path) == 0) return 1;
+    }
+    return 0;
+}
+
 static int is_valid_index_mode(uint32_t mode) {
     return mode == MODE_FILE || mode == MODE_EXEC;
 }
@@ -184,6 +191,10 @@ int index_load(Index *index) {
 
         path[strcspn(path, "\r")] = '\0';
         if (path[0] == '\0') {
+            fclose(f);
+            return -1;
+        }
+        if (has_duplicate_path(index, path)) {
             fclose(f);
             return -1;
         }

@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <dirent.h>
 #include <sys/stat.h>
 
@@ -46,7 +47,9 @@ int tree_parse(const void *data, size_t len, Tree *tree_out) {
     const uint8_t *ptr = (const uint8_t *)data;
     const uint8_t *end = ptr + len;
 
-    while (ptr < end && tree_out->count < MAX_TREE_ENTRIES) {
+    while (ptr < end) {
+        if (tree_out->count >= MAX_TREE_ENTRIES) return -1;
+
         TreeEntry *entry = &tree_out->entries[tree_out->count];
 
         // 1. Safely find the space character for the mode
@@ -58,7 +61,11 @@ int tree_parse(const void *data, size_t len, Tree *tree_out) {
         size_t mode_len = space - ptr;
         if (mode_len >= sizeof(mode_str)) return -1;
         memcpy(mode_str, ptr, mode_len);
-        entry->mode = strtol(mode_str, NULL, 8);
+        errno = 0;
+        char *mode_end = NULL;
+        long mode = strtol(mode_str, &mode_end, 8);
+        if (errno != 0 || !mode_end || *mode_end != '\0' || mode < 0) return -1;
+        entry->mode = (uint32_t)mode;
 
         ptr = space + 1; // Skip space
 

@@ -101,8 +101,11 @@ static int compare_tree_entries(const void *a, const void *b) {
 int tree_serialize(const Tree *tree, void **data_out, size_t *len_out) {
     if (!tree || !data_out || !len_out) return -1;
 
+    if (tree->count < 0 || tree->count > MAX_TREE_ENTRIES) return -1;
+
     // Estimate max size: (6 bytes mode + 1 byte space + 256 bytes name + 1 byte null + 32 bytes hash) per entry
-    size_t max_size = tree->count * 296; 
+    size_t max_size = (size_t)tree->count * 296;
+    if (max_size == 0) max_size = 1;
     uint8_t *buffer = malloc(max_size);
     if (!buffer) return -1;
 
